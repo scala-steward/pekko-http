@@ -316,6 +316,14 @@ class Http2ServerSpec extends Http2SpecWithMaterializer("""
         trailingResponseHeaders.size should be(1)
         trailingResponseHeaders.head should be(("Status", "grpc-status 10"))
       })
+      "ignore the reserved bit of a stream identifier".inAssertAllStagesStopped(
+        new TestSetup with RequestResponseProbes {
+          // RFC 9113 5.1.1: the high bit of the stream identifier is reserved and must be ignored when receiving,
+          // so this is a frame for stream 1 rather than one for an unusable negative stream id
+          network.sendHEADERS(1 | 0x80000000, endStream = true, network.headersForRequest(Get("/")))
+
+          user.expectRequest()
+        })
       "drop a response header whose value contains CRLF".inAssertAllStagesStopped(
         new TestSetup with RequestResponseProbes {
           val streamId = 1
